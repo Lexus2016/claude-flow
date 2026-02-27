@@ -119,15 +119,15 @@ You'll be prompted for:
   Claude Code uses 3 model tiers: haiku (fast), sonnet (balanced), opus (powerful)
 
   Popular models for OpenRouter:
-    anthropic/claude-sonnet-4             sonnet
-    anthropic/claude-opus-4               opus
-    anthropic/claude-haiku-4              haiku
+    anthropic/claude-sonnet-4-6             sonnet
+    anthropic/claude-opus-4-6               opus
+    anthropic/claude-haiku-4-5-20251001              haiku
     google/gemini-2.5-pro                 opus
     deepseek/deepseek-chat                sonnet
 
-  Haiku model  [anthropic/claude-haiku-4]:
-  Sonnet model [anthropic/claude-sonnet-4]:
-  Opus model   [anthropic/claude-opus-4]:
+  Haiku model  [anthropic/claude-haiku-4-5-20251001]:
+  Sonnet model [anthropic/claude-sonnet-4-6]:
+  Opus model   [anthropic/claude-opus-4-6]:
 
   ✓ Configuration saved to /Users/you/.claude-flow/config.json
   ✓ Active provider: OpenRouter
@@ -137,9 +137,9 @@ You'll be prompted for:
     ANTHROPIC_BASE_URL                 https://openrouter.ai/api
     ANTHROPIC_AUTH_TOKEN              sk-or-v1-abc...
     ANTHROPIC_API_KEY                 ""  ← intentionally empty
-    ANTHROPIC_DEFAULT_HAIKU_MODEL     anthropic/claude-haiku-4
-    ANTHROPIC_DEFAULT_SONNET_MODEL    anthropic/claude-sonnet-4
-    ANTHROPIC_DEFAULT_OPUS_MODEL      anthropic/claude-opus-4
+    ANTHROPIC_DEFAULT_HAIKU_MODEL     anthropic/claude-haiku-4-5-20251001
+    ANTHROPIC_DEFAULT_SONNET_MODEL    anthropic/claude-sonnet-4-6
+    ANTHROPIC_DEFAULT_OPUS_MODEL      anthropic/claude-opus-4-6
 
   Quick start:
 
@@ -192,9 +192,9 @@ claude -p "Hello!"
 | Provider | Model Selection | Cost | Setup | Popular For |
 |----------|-----------------|------|-------|------------|
 | **OpenRouter** | 200+ models from all providers | Varies | Easy | One API for everything |
-| **DeepSeek** | V3, R1 (reasoning) | Cheapest | Easy | Cost-effective reasoning |
-| **OpenAI** | GPT-4.1, o3 | Premium | Easy | Cutting-edge models |
-| **Gemini** | Gemini 2.5 Pro/Flash | Competitive | Easy | Fast inference |
+| **DeepSeek** | V3.2, R1 (reasoning) | Cheapest | Easy | Cost-effective reasoning |
+| **OpenAI** | GPT-5.2, o3 | Premium | Easy | Cutting-edge models |
+| **Gemini** | Gemini 3.1 Pro / 3 Flash | Competitive | Easy | Fast inference |
 | **Custom** | Any Anthropic-compatible endpoint | Varies | Manual | Self-hosted, private clouds |
 
 ---
@@ -216,9 +216,9 @@ claude-flow setup openrouter
 ```
 
 **Default models:**
-- Haiku: `anthropic/claude-haiku-4`
-- Sonnet: `anthropic/claude-sonnet-4`
-- Opus: `anthropic/claude-opus-4`
+- Haiku: `anthropic/claude-haiku-4-5-20251001-5-20251001`
+- Sonnet: `anthropic/claude-sonnet-4-6-6`
+- Opus: `anthropic/claude-opus-4-6-6`
 
 **Popular models to try:**
 
@@ -228,29 +228,29 @@ claude-flow models openrouter
 
 ```
   Default tier mapping:
-    haiku  → anthropic/claude-haiku-4
-    sonnet → anthropic/claude-sonnet-4
-    opus   → anthropic/claude-opus-4
+    haiku  → anthropic/claude-haiku-4-5-20251001-5-20251001
+    sonnet → anthropic/claude-sonnet-4-6-6
+    opus   → anthropic/claude-opus-4-6-6
 
   Popular models:
 
     Model ID                                 Name                     Tier
     ─────────────────────────────────────────────────────────────────────
-    anthropic/claude-sonnet-4                Claude Sonnet 4          sonnet
-    anthropic/claude-opus-4                  Claude Opus 4            opus
-    anthropic/claude-haiku-4                 Claude Haiku 4           haiku
-    google/gemini-2.5-pro                    Gemini 2.5 Pro           opus
-    google/gemini-2.5-flash                  Gemini 2.5 Flash         sonnet
-    openai/gpt-4.1                           GPT-4.1                  opus
-    openai/gpt-4.1-mini                      GPT-4.1 Mini             sonnet
-    openai/gpt-4.1-nano                      GPT-4.1 Nano             haiku
-    deepseek/deepseek-r1                     DeepSeek R1              opus
-    deepseek/deepseek-chat                   DeepSeek V3              sonnet
-    meta-llama/llama-4-maverick              Llama 4 Maverick         sonnet
+    anthropic/claude-opus-4-6-6                Claude Opus 4.6          opus
+    anthropic/claude-sonnet-4-6-6              Claude Sonnet 4.6        sonnet
+    anthropic/claude-haiku-4-5-20251001-5-20251001      Claude Haiku 4.5         haiku
+    google/gemini-3.1-pro-preview            Gemini 3.1 Pro           opus
+    google/gemini-3-flash-preview            Gemini 3 Flash           sonnet
+    openai/gpt-5.2                           GPT-5.2                  opus
+    openai/gpt-5.2-mini                      GPT-5.2 Mini             sonnet
+    deepseek/deepseek-v3.2                   DeepSeek V3.2            sonnet
+    deepseek/deepseek-r1-0528                DeepSeek R1              opus
+    minimax/minimax-m2.5                     MiniMax M2.5             opus
+    moonshotai/kimi-k2.5                     Kimi K2.5                opus
     z-ai/glm-5                               GLM-5                    opus
+    qwen/qwen3.5-plus                        Qwen 3.5                 sonnet
+    meta-llama/llama-4-maverick              Llama 4 Maverick         sonnet
     z-ai/glm-4.5-air                         GLM-4.5 Air              haiku
-    mistralai/mistral-large                  Mistral Large            sonnet
-    qwen/qwen3-235b-a22b                     Qwen3 235B               opus
 ```
 
 **Use different model per tier:**
@@ -260,8 +260,8 @@ claude-flow setup openrouter
 
 # When prompted:
 # Haiku model: google/gemini-2.5-flash
-# Sonnet model: deepseek/deepseek-chat
-# Opus model: openai/gpt-4.1
+# Sonnet model: deepseek/deepseek-v3.2
+# Opus model: openai/gpt-5.2
 ```
 
 ---
@@ -270,7 +270,7 @@ claude-flow setup openrouter
 
 **Ultra-fast and cheap. Great for reasoning tasks.**
 
-DeepSeek V3 (fast) and R1 (reasoning) through their native API. Single digit cent costs.
+DeepSeek V3.2 (fast, hybrid thinking) and R1 (deep reasoning) through their native Anthropic-compatible API. Single digit cent costs.
 
 **Get API key:** https://platform.deepseek.com/api_keys
 
@@ -282,28 +282,29 @@ claude-flow setup deepseek
 
 **Default models:**
 - Haiku: `deepseek-chat`
-- Sonnet: `deepseek-chat`
-- Opus: `deepseek-reasoner`
+- Sonnet: `deepseek-v3.2`
+- Opus: `deepseek-r1-0528`
 
 **Why use DeepSeek?**
 - Cheapest LLM pricing available
-- DeepSeek R1 reasoning model beats GPT-4 on many benchmarks
-- Native API (no proxy markup)
+- DeepSeek V3.2 supports hybrid thinking mode
+- DeepSeek R1 reasoning beats most models on benchmarks
+- Native Anthropic-compatible API (no proxy markup)
 
-**Use R1 for reasoning:**
+**Use R1 for deep reasoning:**
 
 ```bash
 claude-flow setup deepseek
-# When prompted for Sonnet and Opus, use: deepseek-reasoner
+# When prompted for Opus, use: deepseek-r1-0528
 ```
 
 ---
 
 ### OpenAI
 
-**Latest GPT models, including o3.**
+**Latest GPT models, including GPT-5.2 and o3.**
 
-GPT-4.1 and o3 (reasoning) through OpenAI's official API.
+GPT-5.2 (flagship), GPT-5.2 Thinking (reasoning) and o3 through OpenAI's official API.
 
 **Get API key:** https://platform.openai.com/api-keys
 
@@ -314,9 +315,9 @@ claude-flow setup openai
 ```
 
 **Default models:**
-- Haiku: `gpt-4.1-nano`
-- Sonnet: `gpt-4.1-mini`
-- Opus: `gpt-4.1`
+- Haiku: `gpt-5.2-mini`
+- Sonnet: `gpt-5.2`
+- Opus: `gpt-5.2`
 
 **Popular models:**
 
@@ -326,19 +327,19 @@ claude-flow models openai
 
 ```
   Default tier mapping:
-    haiku  → gpt-4.1-nano
-    sonnet → gpt-4.1-mini
-    opus   → gpt-4.1
+    haiku  → gpt-5.2-mini
+    sonnet → gpt-5.2
+    opus   → gpt-5.2
 
   Popular models:
 
     Model ID                                 Name                     Tier
     ─────────────────────────────────────────────────────────────────────
-    gpt-4.1                                  GPT-4.1                  opus
-    gpt-4.1-mini                             GPT-4.1 Mini             sonnet
-    gpt-4.1-nano                             GPT-4.1 Nano             haiku
+    gpt-5.2                                  GPT-5.2                  opus
+    gpt-5.2-mini                             GPT-5.2 Mini             sonnet
+    gpt-5.2-thinking                         GPT-5.2 Thinking         opus
     o3                                       o3                       opus
-    o3-mini                                  o3 Mini                  sonnet
+    gpt-4.1                                  GPT-4.1                  sonnet
 ```
 
 ---
@@ -347,7 +348,7 @@ claude-flow models openai
 
 **Google's latest models. Fast and capable.**
 
-Gemini 2.5 Pro and Flash through Google's API.
+Gemini 3.1 Pro (latest flagship), Gemini 3 Flash, and Gemini 2.5 through Google's API.
 
 **Get API key:** https://aistudio.google.com/apikey
 
@@ -359,8 +360,8 @@ claude-flow setup gemini
 
 **Default models:**
 - Haiku: `gemini-2.5-flash`
-- Sonnet: `gemini-2.5-pro`
-- Opus: `gemini-2.5-pro`
+- Sonnet: `gemini-3-flash-preview`
+- Opus: `gemini-3.1-pro-preview`
 
 ---
 
@@ -435,9 +436,9 @@ eval $(claude-flow env deepseek)
 export ANTHROPIC_BASE_URL='https://openrouter.ai/api'
 export ANTHROPIC_AUTH_TOKEN='sk-or-v1-...'
 export ANTHROPIC_API_KEY=''
-export ANTHROPIC_DEFAULT_HAIKU_MODEL='anthropic/claude-haiku-4'
-export ANTHROPIC_DEFAULT_SONNET_MODEL='anthropic/claude-sonnet-4'
-export ANTHROPIC_DEFAULT_OPUS_MODEL='anthropic/claude-opus-4'
+export ANTHROPIC_DEFAULT_HAIKU_MODEL='anthropic/claude-haiku-4-5-20251001'
+export ANTHROPIC_DEFAULT_SONNET_MODEL='anthropic/claude-sonnet-4-6'
+export ANTHROPIC_DEFAULT_OPUS_MODEL='anthropic/claude-opus-4-6'
 ```
 
 ---
@@ -488,7 +489,7 @@ claude-flow status
   Active: openrouter
 
   ● OpenRouter         Key: sk-or-v1-abc...def
-    haiku=anthropic/claude-haiku-4  sonnet=anthropic/claude-sonnet-4  opus=anthropic/claude-opus-4
+    haiku=anthropic/claude-haiku-4-5-20251001  sonnet=anthropic/claude-sonnet-4-6  opus=anthropic/claude-opus-4-6
   ○ DeepSeek           Key: sk-...xyz
     haiku=deepseek-chat  sonnet=deepseek-chat  opus=deepseek-reasoner
 ```
@@ -618,9 +619,9 @@ Claude Code reads these env vars to determine which API to use:
 | `ANTHROPIC_BASE_URL` | API endpoint (where requests go) | `https://openrouter.ai/api` |
 | `ANTHROPIC_AUTH_TOKEN` | Bearer token (proxy providers) | `sk-or-v1-...` |
 | `ANTHROPIC_API_KEY` | API key (direct providers) or `""` | `sk-...` or `""` |
-| `ANTHROPIC_DEFAULT_HAIKU_MODEL` | Fast tier model | `anthropic/claude-haiku-4` |
-| `ANTHROPIC_DEFAULT_SONNET_MODEL` | Balanced tier model | `anthropic/claude-sonnet-4` |
-| `ANTHROPIC_DEFAULT_OPUS_MODEL` | Powerful tier model | `anthropic/claude-opus-4` |
+| `ANTHROPIC_DEFAULT_HAIKU_MODEL` | Fast tier model | `anthropic/claude-haiku-4-5-20251001` |
+| `ANTHROPIC_DEFAULT_SONNET_MODEL` | Balanced tier model | `anthropic/claude-sonnet-4-6` |
+| `ANTHROPIC_DEFAULT_OPUS_MODEL` | Powerful tier model | `anthropic/claude-opus-4-6` |
 
 ### The Empty Key Trick
 
@@ -641,7 +642,7 @@ This is the most common failure point when configuring Claude Code with alternat
 export ANTHROPIC_BASE_URL='https://openrouter.ai/api'
 export ANTHROPIC_AUTH_TOKEN='sk-or-v1-...'
 export ANTHROPIC_API_KEY=''  # Empty string, not absent!
-export ANTHROPIC_DEFAULT_SONNET_MODEL='anthropic/claude-sonnet-4'
+export ANTHROPIC_DEFAULT_SONNET_MODEL='anthropic/claude-sonnet-4-6'
 
 # ✗ WRONG — Missing API_KEY, Claude Code errors
 export ANTHROPIC_BASE_URL='https://openrouter.ai/api'
@@ -688,9 +689,9 @@ Configuration is stored in **`~/.claude-flow/config.json`** (600 permissions —
     "openrouter": {
       "apiKey": "sk-or-v1-...",
       "models": {
-        "haiku": "anthropic/claude-haiku-4",
-        "sonnet": "anthropic/claude-sonnet-4",
-        "opus": "anthropic/claude-opus-4"
+        "haiku": "anthropic/claude-haiku-4-5-20251001",
+        "sonnet": "anthropic/claude-sonnet-4-6",
+        "opus": "anthropic/claude-opus-4-6"
       }
     },
     "deepseek": {
@@ -781,9 +782,9 @@ console.log(env);
 //   ANTHROPIC_BASE_URL: 'https://openrouter.ai/api',
 //   ANTHROPIC_AUTH_TOKEN: 'sk-or-v1-abc123...',
 //   ANTHROPIC_API_KEY: '',
-//   ANTHROPIC_DEFAULT_HAIKU_MODEL: 'anthropic/claude-haiku-4',
-//   ANTHROPIC_DEFAULT_SONNET_MODEL: 'anthropic/claude-sonnet-4',
-//   ANTHROPIC_DEFAULT_OPUS_MODEL: 'anthropic/claude-opus-4'
+//   ANTHROPIC_DEFAULT_HAIKU_MODEL: 'anthropic/claude-haiku-4-5-20251001',
+//   ANTHROPIC_DEFAULT_SONNET_MODEL: 'anthropic/claude-sonnet-4-6',
+//   ANTHROPIC_DEFAULT_OPUS_MODEL: 'anthropic/claude-opus-4-6'
 // }
 ```
 
@@ -867,9 +868,9 @@ console.log(shellScript);
 // export ANTHROPIC_BASE_URL='https://openrouter.ai/api'
 // export ANTHROPIC_AUTH_TOKEN='sk-or-v1-...'
 // export ANTHROPIC_API_KEY=''
-// export ANTHROPIC_DEFAULT_HAIKU_MODEL='anthropic/claude-haiku-4'
-// export ANTHROPIC_DEFAULT_SONNET_MODEL='anthropic/claude-sonnet-4'
-// export ANTHROPIC_DEFAULT_OPUS_MODEL='anthropic/claude-opus-4'
+// export ANTHROPIC_DEFAULT_HAIKU_MODEL='anthropic/claude-haiku-4-5-20251001'
+// export ANTHROPIC_DEFAULT_SONNET_MODEL='anthropic/claude-sonnet-4-6'
+// export ANTHROPIC_DEFAULT_OPUS_MODEL='anthropic/claude-opus-4-6'
 ```
 
 ---
@@ -934,7 +935,7 @@ console.log(PROVIDERS.openrouter.docsUrl);
 // 'https://openrouter.ai/keys'
 
 console.log(PROVIDERS.openrouter.popularModels);
-// [{ id: 'anthropic/claude-sonnet-4', name: '...', tier: 'sonnet' }, ...]
+// [{ id: 'anthropic/claude-sonnet-4-6', name: '...', tier: 'sonnet' }, ...]
 ```
 
 ---
