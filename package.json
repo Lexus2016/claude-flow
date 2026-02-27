@@ -1,7 +1,7 @@
 {
   "name": "claude-flow",
-  "version": "1.0.0",
-  "description": "Use any LLM with Claude Code — OpenRouter, DeepSeek, OpenAI and more",
+  "version": "1.1.0",
+  "description": "Bridge any AI model to Claude Code CLI — solves response format incompatibility, auth quirks, and config complexity for OpenRouter, DeepSeek, OpenAI, Gemini and more",
   "bin": {
     "claude-flow": "./bin/claude-flow.js"
   },

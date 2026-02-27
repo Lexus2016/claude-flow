@@ -1,6 +1,6 @@
 # claude-flow
 
-**Use any LLM with Claude Code** — OpenRouter, DeepSeek, OpenAI, Gemini, or custom endpoints.
+**Bridge any AI model to Claude Code CLI** — route through OpenRouter, DeepSeek, OpenAI, Gemini, or any Anthropic-compatible endpoint.
 
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0-green) ![License](https://img.shields.io/badge/license-MIT-blue) ![Zero Dependencies](https://img.shields.io/badge/dependencies-0-success)
 
@@ -10,11 +10,31 @@ Available in: **[English](README.md)** | [Українська](README_UA.md) | 
 
 ## The Problem
 
-Claude Code CLI **only works with Anthropic's API by default**. If you want to use OpenRouter, DeepSeek, OpenAI, or any other provider, you need to set environment variables correctly.
+Claude Code CLI is hardcoded for Anthropic's API. It sends requests in Anthropic's Messages API format, expects responses in that exact format, and authenticates using Anthropic's method. If you want to use **any other model** — DeepSeek, GPT-4, Gemini, GLM, Llama, Qwen — you hit three walls:
 
-There's a **critical gotcha that breaks most setups**: `ANTHROPIC_API_KEY` must be set to an empty string (`""`), not absent or unset. If it's missing, Claude Code errors. If it's non-empty, it ignores your provider auth token.
+### 1. Response Format Incompatibility
 
-**claude-flow handles this correctly** — and handles all the other env vars too. Set it and forget it.
+Every AI provider has its own API format. DeepSeek, OpenAI, and Gemini use the OpenAI-compatible format. Chinese models (GLM, Qwen) have their own APIs. Open-source models (Llama, Mistral) each have unique response structures.
+
+Claude Code expects Anthropic's **specific** streaming events (`content_block_delta`), content block types, `tool_use` structures, `stop_reason` values, and token counting fields. Send it a raw DeepSeek or OpenAI response — it crashes.
+
+**The fix:** Providers like **OpenRouter** and **DeepSeek** offer **Anthropic-compatible proxy endpoints** — they accept requests in Anthropic format, route them to any model, and **translate the response back** into Anthropic format. claude-flow knows exactly which endpoints to use for each provider.
+
+### 2. Authentication Trap
+
+Claude Code's auth has an **undocumented quirk**: `ANTHROPIC_API_KEY` must be set to an **empty string** (`""`) for proxy providers — not absent, not unset. Specifically an empty string.
+
+- If `ANTHROPIC_API_KEY` is **absent** → Claude Code errors out on startup
+- If `ANTHROPIC_API_KEY` is **non-empty** → Claude Code uses it and silently ignores your proxy token
+- If `ANTHROPIC_API_KEY` is **`""`** → Claude Code falls back to `ANTHROPIC_AUTH_TOKEN` ✓
+
+Different providers also use different auth methods — Bearer token (OpenRouter) vs. API key header (DeepSeek, OpenAI). Getting any of this wrong means silent failures.
+
+### 3. Configuration Complexity
+
+6 environment variables, zero official documentation, different combinations for each provider, and non-obvious behaviors. One wrong setting = Claude Code either crashes or silently talks to the wrong endpoint.
+
+**claude-flow solves all three.** One command configures everything correctly for any provider.
 
 ---
 
@@ -554,24 +574,59 @@ claude-flow -v
 
 ## How It Works
 
+### Architecture
+
+```
+Without claude-flow:
+  Claude Code CLI → Anthropic API → Claude models only
+                                     (no other models possible)
+
+With claude-flow:
+  ┌─────────────┐    Anthropic    ┌──────────────────────┐    Native    ┌──────────────┐
+  │ Claude Code │ ── Messages ──→ │ Provider's           │ ── API ───→ │ Any Model    │
+  │ CLI         │    API format   │ Anthropic-compatible │    call      │              │
+  │             │ ←─ Anthropic ── │ endpoint             │ ←─ Native ─ │ GPT, GLM,    │
+  │             │    format       │                      │    format    │ Llama, Qwen, │
+  └─────────────┘                 │ TRANSLATES responses │              │ DeepSeek,    │
+                                  │ between formats      │              │ Gemini, ...  │
+                                  └──────────────────────┘              └──────────────┘
+                                            ▲
+                                   claude-flow configures
+                                   this connection correctly
+```
+
+**The key insight:** Claude Code doesn't need to talk to models directly. It talks to an **Anthropic-compatible proxy endpoint** that handles the format translation. OpenRouter translates 200+ models into Anthropic format. DeepSeek's `/anthropic` endpoint does the same. claude-flow knows which endpoint to use for each provider and configures Claude Code to connect there.
+
+### What Providers Do Behind the Scenes
+
+When you use `z-ai/glm-5` through OpenRouter:
+
+1. Claude Code sends an Anthropic Messages API request to `https://openrouter.ai/api/v1/messages`
+2. OpenRouter receives the request, translates it to GLM-5's native format
+3. GLM-5 processes and returns a response in its own format
+4. OpenRouter **translates the response back** into Anthropic Messages API format
+5. Claude Code receives a response it understands — streaming events, content blocks, tool_use, everything
+
+Without this translation, Claude Code gets a response in the wrong format and crashes.
+
 ### The Environment Variables
 
 Claude Code reads these env vars to determine which API to use:
 
 | Env Var | Purpose | Example |
 |---------|---------|---------|
-| `ANTHROPIC_BASE_URL` | API endpoint | `https://openrouter.ai/api` |
+| `ANTHROPIC_BASE_URL` | API endpoint (where requests go) | `https://openrouter.ai/api` |
 | `ANTHROPIC_AUTH_TOKEN` | Bearer token (proxy providers) | `sk-or-v1-...` |
-| `ANTHROPIC_API_KEY` | API key (direct providers) | `sk-...` |
+| `ANTHROPIC_API_KEY` | API key (direct providers) or `""` | `sk-...` or `""` |
 | `ANTHROPIC_DEFAULT_HAIKU_MODEL` | Fast tier model | `anthropic/claude-haiku-4` |
 | `ANTHROPIC_DEFAULT_SONNET_MODEL` | Balanced tier model | `anthropic/claude-sonnet-4` |
 | `ANTHROPIC_DEFAULT_OPUS_MODEL` | Powerful tier model | `anthropic/claude-opus-4` |
 
-### The Critical Gotcha
+### The Empty Key Trick
 
 **`ANTHROPIC_API_KEY` must be set to an empty string (`""`) for proxy providers, not absent or unset.**
 
-This is the whole reason claude-flow exists.
+This is the most common failure point when configuring Claude Code with alternative providers.
 
 #### Why?
 
@@ -585,7 +640,7 @@ This is the whole reason claude-flow exists.
 # ✓ CORRECT — Claude Code uses AUTH_TOKEN for OpenRouter
 export ANTHROPIC_BASE_URL='https://openrouter.ai/api'
 export ANTHROPIC_AUTH_TOKEN='sk-or-v1-...'
-export ANTHROPIC_API_KEY=''  # Empty string, not absent
+export ANTHROPIC_API_KEY=''  # Empty string, not absent!
 export ANTHROPIC_DEFAULT_SONNET_MODEL='anthropic/claude-sonnet-4'
 
 # ✗ WRONG — Missing API_KEY, Claude Code errors
@@ -599,7 +654,7 @@ export ANTHROPIC_AUTH_TOKEN='sk-or-v1-...'
 export ANTHROPIC_API_KEY='some-random-value'
 ```
 
-#### Example: DeepSeek (uses api_key)
+#### Example: DeepSeek (uses api_key directly)
 
 ```bash
 # ✓ CORRECT — Claude Code uses API_KEY for DeepSeek
@@ -612,11 +667,11 @@ export ANTHROPIC_DEFAULT_SONNET_MODEL='deepseek-chat'
 
 The `buildEnv()` function in `lib/env.js`:
 
-1. **Detects the provider type** (proxy vs. direct)
+1. **Selects the correct endpoint** that handles format translation for each provider
 2. **For proxy providers** (OpenRouter): Sets `ANTHROPIC_API_KEY = ""` and `ANTHROPIC_AUTH_TOKEN = apiKey`
-3. **For direct providers** (DeepSeek, OpenAI): Sets `ANTHROPIC_API_KEY = apiKey`
-4. **Always sets** `ANTHROPIC_BASE_URL` and the three `ANTHROPIC_DEFAULT_*_MODEL` vars
-5. **Returns a complete env object** ready to pass to Claude Code
+3. **For direct providers** (DeepSeek, OpenAI): Sets `ANTHROPIC_API_KEY = apiKey` (their endpoints accept Anthropic format natively)
+4. **Maps models to tiers** — sets `ANTHROPIC_DEFAULT_HAIKU/SONNET/OPUS_MODEL`
+5. **Returns a complete env object** ready to pass to Claude Code — no guesswork, no gotchas
 
 ---
 
