@@ -1,0 +1,37 @@
+{
+  "name": "claude-flow",
+  "version": "1.0.0",
+  "description": "Use any LLM with Claude Code — OpenRouter, DeepSeek, OpenAI and more",
+  "bin": {
+    "claude-flow": "./bin/claude-flow.js"
+  },
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./providers": "./lib/providers.js"
+  },
+  "scripts": {
+    "test": "node test/test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Lexus2016/claude-flow.git"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "openrouter",
+    "llm",
+    "proxy",
+    "ai",
+    "deepseek",
+    "openai",
+    "anthropic"
+  ],
+  "author": "CDZV",
+  "license": "MIT",
+  "homepage": "https://github.com/Lexus2016/claude-flow#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
