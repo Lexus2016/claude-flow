@@ -1,14 +1,16 @@
 {
   "name": "claude-flow",
-  "version": "1.2.0",
-  "description": "Bridge any AI model to Claude Code CLI — solves response format incompatibility, auth quirks, and config complexity for OpenRouter, DeepSeek, OpenAI, Gemini and more",
+  "version": "2.0.0",
+  "description": "Bridge any AI model to Claude Code CLI — sanitizing proxy + env config for OpenRouter, DeepSeek, OpenAI, Gemini and more",
   "bin": {
     "claude-flow": "./bin/claude-flow.js"
   },
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
-    "./providers": "./lib/providers.js"
+    "./providers": "./lib/providers.js",
+    "./proxy": "./lib/proxy.js",
+    "./sanitize": "./lib/sanitize.js"
   },
   "scripts": {
     "test": "node test/test.js"

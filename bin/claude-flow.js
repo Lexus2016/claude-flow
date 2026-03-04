@@ -6,7 +6,8 @@
  * Usage:
  *   claude-flow setup <provider>     Interactive setup
  *   claude-flow env [provider]       Print shell exports (for eval)
- *   claude-flow run -- <command>     Run a command with provider env
+ *   claude-flow run -- <command>     Run a command with provider env + sanitizing proxy
+ *   claude-flow proxy [provider]     Start standalone sanitizing proxy
  *   claude-flow providers            List available providers
  *   claude-flow models [provider]    List popular models
  *   claude-flow status               Show current configuration
@@ -16,7 +17,7 @@
 const { spawn } = require("child_process");
 const { createInterface } = require("readline");
 const { buildEnv, toShellExports, mergeEnv } = require("../lib/env");
-const { getProvider, listProviders, PROVIDERS } = require("../lib/providers");
+const { getProvider, listProviders, PROVIDERS, getAuthConfig } = require("../lib/providers");
 const config = require("../lib/config");
 
 // ── Colors (no dependencies) ────────────────────────────────────────
@@ -50,6 +51,7 @@ async function main() {
     case "setup":     return cmdSetup(args[1]);
     case "env":       return cmdEnv(args[1]);
     case "run":       return cmdRun(args.slice(1));
+    case "proxy":     return cmdProxy(args.slice(1));
     case "providers": return cmdProviders();
     case "models":    return cmdModels(args[1]);
     case "status":    return cmdStatus();
@@ -164,11 +166,11 @@ async function cmdSetup(providerName) {
   }
 
   console.log(`\n  ${B("Quick start:")}\n`);
-  console.log(`    ${D("# Option 1: Run directly")}`);
+  console.log(`    ${D("# Option 1: Run directly (with sanitizing proxy)")}`);
   console.log(`    ${C("claude-flow run -- claude -p 'Hello from " + provider.name + "!'")}\n`);
-  console.log(`    ${D("# Option 2: Add to your shell profile")}`);
-  console.log(`    ${C('echo \'eval "$(claude-flow env)"\' >> ~/.bashrc')}\n`);
-  console.log(`    ${D("# Option 3: One-time eval")}`);
+  console.log(`    ${D("# Option 2: Start proxy separately")}`);
+  console.log(`    ${C("claude-flow proxy")}\n`);
+  console.log(`    ${D("# Option 3: Env vars only (no proxy, for Anthropic-native providers)")}`);
   console.log(`    ${C("eval $(claude-flow env)")}\n`);
 }
 
@@ -200,11 +202,15 @@ function cmdEnv(providerName) {
 
 // ── run ─────────────────────────────────────────────────────────────
 
-function cmdRun(rawArgs) {
-  // Find -- separator
+async function cmdRun(rawArgs) {
+  // Parse flags before -- separator
   const dashIdx = rawArgs.indexOf("--");
-  const providerArgs = dashIdx > 0 ? rawArgs.slice(0, dashIdx) : [];
+  const flagArgs = dashIdx > 0 ? rawArgs.slice(0, dashIdx) : [];
   const cmdArgs = dashIdx >= 0 ? rawArgs.slice(dashIdx + 1) : rawArgs.slice(1);
+
+  // Extract flags
+  const noProxy = flagArgs.includes("--no-proxy");
+  const providerFlag = flagArgs.find(a => !a.startsWith("--"));
 
   if (cmdArgs.length === 0) {
     console.error(R("No command specified."));
@@ -212,10 +218,16 @@ function cmdRun(rawArgs) {
     process.exit(1);
   }
 
-  const providerName = providerArgs[0] || config.getActiveProvider();
+  const providerName = providerFlag || config.getActiveProvider();
   if (!providerName) {
     console.error(R("No active provider."));
     console.error(`Run: ${B("claude-flow setup <provider>")} first.`);
+    process.exit(1);
+  }
+
+  const provider = getProvider(providerName);
+  if (!provider) {
+    console.error(R(`Unknown provider "${providerName}".`));
     process.exit(1);
   }
 
@@ -233,6 +245,29 @@ function cmdRun(rawArgs) {
     opus:   saved.models?.opus,
   });
 
+  // Start sanitizing proxy (unless --no-proxy)
+  let proxyInstance = null;
+  if (!noProxy) {
+    try {
+      const { createProxy } = require("../lib/proxy");
+      const auth = getAuthConfig(providerName, saved.apiKey);
+
+      proxyInstance = await createProxy({
+        targetUrl: provider.baseUrl,
+        authHeader: auth.authHeader,
+        authValue: auth.authValue,
+      });
+
+      // Override env to route through proxy
+      env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${proxyInstance.port}/api`;
+
+      console.error(`${G("✓")} Proxy: 127.0.0.1:${proxyInstance.port} ${D(`→ ${provider.baseUrl}`)}`);
+    } catch (err) {
+      console.error(Y(`Warning: Could not start proxy: ${err.message}`));
+      console.error(Y("Continuing without proxy (some features may not work with non-Anthropic models)"));
+    }
+  }
+
   // Spawn the command with provider env
   const child = spawn(cmdArgs[0], cmdArgs.slice(1), {
     env,
@@ -240,12 +275,125 @@ function cmdRun(rawArgs) {
     shell: process.platform === "win32",
   });
 
-  child.on("exit", (code) => process.exit(code || 0));
+  // Cleanup on exit
+  const cleanup = async (code) => {
+    if (proxyInstance) {
+      try { await proxyInstance.close(); } catch {}
+    }
+    process.exit(code || 0);
+  };
+
+  child.on("exit", (code) => cleanup(code));
   child.on("error", (err) => {
     console.error(R(`Failed to run: ${cmdArgs[0]}`));
     console.error(err.message);
-    process.exit(1);
+    cleanup(1);
   });
+
+  // Handle signals — kill child, then cleanup
+  for (const sig of ["SIGINT", "SIGTERM"]) {
+    process.on(sig, () => {
+      child.kill(sig);
+      // child.on("exit") will handle cleanup
+    });
+  }
+}
+
+// ── proxy ───────────────────────────────────────────────────────────
+
+async function cmdProxy(rawArgs) {
+  // Parse arguments
+  let providerName = null;
+  let port = 0;
+  let verbose = false;
+
+  for (let i = 0; i < rawArgs.length; i++) {
+    const arg = rawArgs[i];
+    if (arg === "--verbose" || arg === "-v") {
+      verbose = true;
+    } else if (arg.startsWith("--port=")) {
+      port = parseInt(arg.split("=")[1], 10);
+      if (isNaN(port)) {
+        console.error(R("Invalid port number."));
+        process.exit(1);
+      }
+    } else if (arg === "--port") {
+      // --port 8080 (next arg consumed)
+      port = parseInt(rawArgs[++i], 10);
+      if (isNaN(port)) {
+        console.error(R("Invalid or missing port number after --port."));
+        process.exit(1);
+      }
+    } else if (!arg.startsWith("--") && !providerName) {
+      providerName = arg;
+    }
+  }
+
+  providerName = providerName || config.getActiveProvider();
+
+  if (!providerName) {
+    console.error(R("No provider specified."));
+    console.error(`Usage: ${B("claude-flow proxy <provider>")} or configure a default with ${B("claude-flow setup")}`);
+    process.exit(1);
+  }
+
+  const provider = getProvider(providerName);
+  if (!provider) {
+    console.error(R(`Unknown provider "${providerName}".`));
+    process.exit(1);
+  }
+
+  // Get API key from saved config or environment
+  const saved = config.getProviderConfig(providerName);
+  const apiKey = saved?.apiKey || process.env[provider.envKey] || "";
+
+  if (!apiKey) {
+    console.error(R(`No API key for ${provider.name}.`));
+    console.error(`Run: ${B(`claude-flow setup ${providerName}`)} or set ${B(provider.envKey)} env var.`);
+    process.exit(1);
+  }
+
+  // Start proxy
+  const { createProxy } = require("../lib/proxy");
+  const auth = getAuthConfig(providerName, apiKey);
+
+  const proxy = await createProxy({
+    targetUrl: provider.baseUrl,
+    authHeader: auth.authHeader,
+    authValue: auth.authValue,
+    port,
+    verbose,
+  });
+
+  console.error(`\n  ${B("claude-flow proxy")} — Sanitizing proxy for ${B(provider.name)}\n`);
+  console.error(`  ${G("●")} Listening: ${B(`http://127.0.0.1:${proxy.port}`)}`);
+  console.error(`  ${D("→")} Upstream:  ${provider.baseUrl}`);
+  const maskedAuth = auth.authValue.length > 12
+    ? auth.authValue.slice(0, 8) + "..." + auth.authValue.slice(-4)
+    : "***";
+  console.error(`  ${D("→")} Auth:      ${auth.authHeader}: ${maskedAuth}`);
+
+  // Print env vars for Claude Code
+  const models = saved?.models || provider.models;
+  console.error(`\n  ${B("Set these env vars for Claude Code:")}\n`);
+  console.error(`    export ANTHROPIC_BASE_URL='http://127.0.0.1:${proxy.port}/api'`);
+  console.error(`    export ANTHROPIC_API_KEY=''`);
+  console.error(`    export ANTHROPIC_DEFAULT_HAIKU_MODEL='${models.haiku || provider.models.haiku}'`);
+  console.error(`    export ANTHROPIC_DEFAULT_SONNET_MODEL='${models.sonnet || provider.models.sonnet}'`);
+  console.error(`    export ANTHROPIC_DEFAULT_OPUS_MODEL='${models.opus || provider.models.opus}'`);
+
+  console.error(`\n  ${D("Or run directly:")} ${C(`claude-flow run -- claude -p 'Hello'`)}`);
+  console.error(`\n  ${D("Press Ctrl+C to stop.")}\n`);
+
+  // Wait for signal
+  const shutdown = async () => {
+    console.error(`\n  ${D("Shutting down proxy...")}`);
+    await proxy.close();
+    process.exit(0);
+  };
+
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 }
 
 // ── providers ───────────────────────────────────────────────────────
@@ -355,30 +503,31 @@ function cmdHelp() {
     ${C("claude-flow setup custom")}         Configure custom endpoint
 
   ${B("USE")}
-    ${C('claude-flow run -- claude -p "Hi"')}   Run Claude Code with provider
+    ${C('claude-flow run -- claude -p "Hi"')}   Run with sanitizing proxy (recommended)
+    ${C("claude-flow run --no-proxy -- ...")}   Run without proxy (env vars only)
+    ${C("claude-flow proxy")}                   Start standalone sanitizing proxy
+    ${C("claude-flow proxy --port 8080")}       Proxy on specific port
+
+  ${B("CONFIG")}
     ${C("eval $(claude-flow env)")}             Export env vars to current shell
     ${C("claude-flow switch openrouter")}       Switch active provider
-
-  ${B("INFO")}
     ${C("claude-flow status")}                  Show current config
     ${C("claude-flow providers")}               List all providers
     ${C("claude-flow models openrouter")}       Browse models
 
+  ${B("PROXY")} ${D("(sanitizes Anthropic-internal types for non-Anthropic models)")}
+    The sanitizing proxy sits between Claude Code and your provider,
+    cleaning up internal content types (thinking blocks, tool_reference,
+    server_tool_use, cache_control, $schema in tools) that would cause
+    errors on non-Anthropic models.
+
+    ${D("Automatically started with")} ${C("claude-flow run")}
+    ${D("Use")} ${C("--no-proxy")} ${D("to disable (if your provider handles these natively)")}
+
   ${B("JS API")} ${D("(for integration with other tools)")}
-    ${D("const { buildEnv, mergeEnv } = require('claude-flow');")}
-    ${D("const env = buildEnv('openrouter', { apiKey: '...' });")}
-    ${D("spawn('claude', args, { env: mergeEnv('openrouter', { apiKey: '...' }) });")}
-
-  ${B("HOW IT WORKS")}
-    Claude Code natively supports env vars for API routing:
-      ANTHROPIC_BASE_URL          → API endpoint
-      ANTHROPIC_AUTH_TOKEN        → Bearer token (OpenRouter, etc.)
-      ANTHROPIC_API_KEY           → Must be "" (empty) for proxy providers
-      ANTHROPIC_DEFAULT_*_MODEL   → Model per tier (haiku/sonnet/opus)
-
-    claude-flow configures these correctly for each provider.
-    The key gotcha: ANTHROPIC_API_KEY must be ${B('""')} (empty string),
-    not absent — otherwise Claude Code errors out.
+    ${D("const { buildEnv, createProxy, getAuthConfig } = require('claude-flow');")}
+    ${D("const proxy = await createProxy({ targetUrl, ...getAuthConfig('openrouter', key) });")}
+    ${D("spawn('claude', args, { env: { ANTHROPIC_BASE_URL: proxy.url + '/api', ... } });")}
 
   ${D("https://github.com/Lexus2016/claude-flow")}
 `);
