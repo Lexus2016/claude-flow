@@ -256,6 +256,7 @@ async function cmdRun(rawArgs) {
         targetUrl: provider.baseUrl,
         authHeader: auth.authHeader,
         authValue: auth.authValue,
+        maxOutputTokens: provider.maxOutputTokens || 0,
       });
 
       // Override env to route through proxy
@@ -361,6 +362,7 @@ async function cmdProxy(rawArgs) {
     targetUrl: provider.baseUrl,
     authHeader: auth.authHeader,
     authValue: auth.authValue,
+    maxOutputTokens: provider.maxOutputTokens || 0,
     port,
     verbose,
   });

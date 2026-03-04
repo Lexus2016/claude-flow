@@ -443,6 +443,35 @@ const weirdBody = { messages: "not an array" };
 const fallback = sanitizeRequestBody(weirdBody);
 assert(fallback.messages === "not an array", "Malformed body returned as-is on failure");
 
+console.log("\nSanitization — max_tokens clamping:");
+
+// Clamped when over provider limit
+const clampedBody = sanitizeRequestBody(
+  { model: "deepseek-chat", messages: [{ role: "user", content: "hi" }], max_tokens: 16384 },
+  { maxOutputTokens: 8192 }
+);
+assert(clampedBody.max_tokens === 8192, "max_tokens clamped to provider limit");
+
+// Not clamped when under limit
+const underBody = sanitizeRequestBody(
+  { model: "deepseek-chat", messages: [{ role: "user", content: "hi" }], max_tokens: 4096 },
+  { maxOutputTokens: 8192 }
+);
+assert(underBody.max_tokens === 4096, "max_tokens preserved when under limit");
+
+// No opts — no clamping
+const noOptsBody = sanitizeRequestBody(
+  { model: "test", messages: [{ role: "user", content: "hi" }], max_tokens: 99999 }
+);
+assert(noOptsBody.max_tokens === 99999, "max_tokens unchanged without opts");
+
+// maxOutputTokens = 0 — no clamping
+const zeroCapBody = sanitizeRequestBody(
+  { model: "test", messages: [{ role: "user", content: "hi" }], max_tokens: 16384 },
+  { maxOutputTokens: 0 }
+);
+assert(zeroCapBody.max_tokens === 16384, "max_tokens unchanged with maxOutputTokens=0");
+
 console.log("\nSanitization — stripCacheControl:");
 
 const stripped = stripCacheControl({ text: "hi", cache_control: { type: "ephemeral" } });
