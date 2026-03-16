@@ -13,6 +13,7 @@ const {
   sanitizeMessages,
   cleanToolSchema,
   stripCacheControl,
+  isGeminiThinkingModel,
   REMOVE_CONTENT_TYPES,
 } = require("../lib/sanitize");
 
@@ -471,6 +472,44 @@ const zeroCapBody = sanitizeRequestBody(
   { maxOutputTokens: 0 }
 );
 assert(zeroCapBody.max_tokens === 16384, "max_tokens unchanged with maxOutputTokens=0");
+
+console.log("\nSanitization — Gemini thinking fix:");
+
+// isGeminiThinkingModel
+assert(isGeminiThinkingModel("google/gemini-2.5-flash") === true, "gemini-2.5-flash is a thinking model");
+assert(isGeminiThinkingModel("google/gemini-2.5-pro") === true, "gemini-2.5-pro is a thinking model");
+assert(isGeminiThinkingModel("google/gemini-2.5-flash:free") === true, "gemini-2.5-flash:free detected (suffix stripped)");
+assert(isGeminiThinkingModel("google/gemini-3-flash-preview") === true, "gemini-3 future-proofed");
+assert(isGeminiThinkingModel("google/gemini-2.5-flash-lite") === false, "gemini-2.5-flash-lite excluded (thinking off by default)");
+assert(isGeminiThinkingModel("anthropic/claude-sonnet-4-6") === false, "Claude is not a Gemini thinking model");
+assert(isGeminiThinkingModel("google/gemini-2.0-flash") === false, "gemini-2.0 is not a thinking model");
+assert(isGeminiThinkingModel("") === false, "empty string returns false");
+assert(isGeminiThinkingModel(null) === false, "null returns false");
+
+// reasoning.effort injected for Gemini
+const geminiBody = sanitizeRequestBody({
+  model: "google/gemini-2.5-flash",
+  messages: [{ role: "user", content: "Hi" }],
+  thinking: { type: "enabled", budget_tokens: 10000 },
+});
+assert(!("thinking" in geminiBody), "Gemini: thinking parameter removed");
+assert(geminiBody.reasoning != null, "Gemini: reasoning parameter injected");
+assertDeepEqual(geminiBody.reasoning, { effort: "none" }, "Gemini: reasoning.effort is 'none'");
+
+// reasoning NOT injected for non-Gemini models
+const claudeBody = sanitizeRequestBody({
+  model: "anthropic/claude-sonnet-4-6",
+  messages: [{ role: "user", content: "Hi" }],
+});
+assert(!("reasoning" in claudeBody), "Claude: no reasoning parameter injected");
+
+// reasoning_content content type removed
+const reasoningContentResult = sanitizeContent([
+  { type: "reasoning_content", data: "internal reasoning..." },
+  { type: "text", text: "actual response" },
+]);
+assert(reasoningContentResult.length === 1, "reasoning_content block removed");
+assert(reasoningContentResult[0].text === "actual response", "text preserved after reasoning_content removal");
 
 console.log("\nSanitization — stripCacheControl:");
 
