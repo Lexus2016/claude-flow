@@ -41,8 +41,8 @@ Different providers also use different auth methods — Bearer token (OpenRouter
 ## Quick Start
 
 ```bash
-# Install
-npm install -g claude-flow
+# Install from GitHub
+npm install -g github:Lexus2016/claude-flow
 
 # Setup your provider (interactive)
 claude-flow setup openrouter
@@ -58,25 +58,21 @@ That's it. Now Claude Code uses your provider for every invocation.
 
 ## Installation
 
-### Option 1: Global NPM (recommended)
+> **Important:** The `claude-flow` name on npm belongs to an **unrelated project**. Always install from **GitHub** to get the correct package.
+
+### Option 1: Install from GitHub (recommended)
 
 ```bash
-npm install -g claude-flow
+npm install -g github:Lexus2016/claude-flow
 ```
 
-### Option 2: Run without installing (npx)
-
-```bash
-npx claude-flow setup openrouter
-npx claude-flow run -- claude -p "Hello!"
-```
-
-### Option 3: Clone and use locally
+### Option 2: Clone and use locally
 
 ```bash
 git clone https://github.com/Lexus2016/claude-flow.git
 cd claude-flow
-node bin/claude-flow.js setup openrouter
+npm link
+claude-flow setup openrouter
 ```
 
 ### Requirements
@@ -92,7 +88,7 @@ node bin/claude-flow.js setup openrouter
 ### 1. Install claude-flow
 
 ```bash
-npm install -g claude-flow
+npm install -g github:Lexus2016/claude-flow
 ```
 
 ### 2. Run the interactive setup
@@ -734,7 +730,7 @@ Use claude-flow as a library in your Node.js projects (e.g., Claude Code Studio,
 ### Installation
 
 ```bash
-npm install claude-flow
+npm install github:Lexus2016/claude-flow
 ```
 
 ### API Overview
@@ -995,7 +991,7 @@ Use claude-flow in your Docker container to route to any LLM:
 ```dockerfile
 FROM node:18-slim
 
-RUN npm install -g claude-flow
+RUN npm install -g github:Lexus2016/claude-flow
 
 WORKDIR /app
 COPY . .
@@ -1051,8 +1047,8 @@ Make sure claude-flow is installed and in your PATH:
 
 ```bash
 which claude-flow
-# If empty, install:
-npm install -g claude-flow
+# If empty, install from GitHub:
+npm install -g github:Lexus2016/claude-flow
 ```
 
 ### "No active provider"

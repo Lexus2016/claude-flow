@@ -42,7 +42,7 @@ Claude Code очікує **конкретні** streaming-події Anthropic (
 
 ```bash
 # Встановлення
-npm install -g claude-flow
+npm install -g github:Lexus2016/claude-flow
 
 # Налаштування провайдера (інтерактивно)
 claude-flow setup openrouter
@@ -58,20 +58,15 @@ claude -p "Привіт з OpenRouter!"
 
 ## Встановлення
 
+> **Важливо:** Назва `claude-flow` на npm належить **іншому проєкту**. Завжди встановлюйте з **GitHub**, щоб отримати правильний пакет.
+
 ### Варіант 1: Глобально через NPM (рекомендовано)
 
 ```bash
-npm install -g claude-flow
+npm install -g github:Lexus2016/claude-flow
 ```
 
-### Варіант 2: Запуск без встановлення (npx)
-
-```bash
-npx claude-flow setup openrouter
-npx claude-flow run -- claude -p "Привіт!"
-```
-
-### Варіант 3: Клонування та локальне використання
+### Варіант 2: Клонування та локальне використання
 
 ```bash
 git clone https://github.com/Lexus2016/claude-flow.git
@@ -92,7 +87,7 @@ node bin/claude-flow.js setup openrouter
 ### 1. Встановлення claude-flow
 
 ```bash
-npm install -g claude-flow
+npm install -g github:Lexus2016/claude-flow
 ```
 
 ### 2. Запуск інтерактивного майстра налаштування
@@ -731,7 +726,7 @@ claude-flow run -- claude -p "Привіт"
 ### Встановлення
 
 ```bash
-npm install claude-flow
+npm install github:Lexus2016/claude-flow
 ```
 
 ### Огляд API
@@ -992,7 +987,7 @@ spawn('claude', args, { env: mergeEnv(selectedProvider, { apiKey }) });
 ```dockerfile
 FROM node:18-slim
 
-RUN npm install -g claude-flow
+RUN npm install -g github:Lexus2016/claude-flow
 
 WORKDIR /app
 COPY . .
@@ -1049,7 +1044,7 @@ source ~/.bashrc  # або ~/.zshrc, тощо
 ```bash
 which claude-flow
 # Якщо пусто, встановіть:
-npm install -g claude-flow
+npm install -g github:Lexus2016/claude-flow
 ```
 
 ### "Немає активного провайдера"
