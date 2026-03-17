@@ -1,6 +1,6 @@
 {
   "name": "claude-flow",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Bridge any AI model to Claude Code CLI — sanitizing proxy + env config for OpenRouter, DeepSeek, OpenAI, Gemini and more",
   "bin": {
     "claude-flow": "./bin/claude-flow.js"
