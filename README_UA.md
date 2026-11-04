@@ -1,6 +1,6 @@
 # claude-flow
 
-**Мiст між будь-якою AI моделлю та Claude Code CLI** — маршрутизація через OpenRouter, DeepSeek, OpenAI, Gemini або будь-який Anthropic-сумісний endpoint.
+**Налаштування Claude Code для Anthropic-сумісних провайдерів із локальним проксі очищення запитів.** Без залежностей під час виконання; Node.js.
 
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0-green) ![Ліцензія](https://img.shields.io/badge/license-MIT-blue) ![Нулю залежностей](https://img.shields.io/badge/dependencies-0-success)
 
@@ -8,35 +8,9 @@
 
 ---
 
-## Проблема
+## Сумісність
 
-Claude Code CLI жорстко прив'язаний до API Anthropic. Він відправляє запити у форматі Anthropic Messages API, очікує відповіді у тому ж форматі та автентифікується методом Anthropic. Якщо ви хочете використовувати **будь-яку іншу модель** — DeepSeek, GPT-4, Gemini, GLM, Llama, Qwen — ви зіткнетесь з трьома стінами:
-
-### 1. Несумісність форматів відповідей
-
-Кожен AI-провайдер має свій формат API. DeepSeek, OpenAI та Gemini використовують OpenAI-сумісний формат. Китайські моделі (GLM, Qwen) мають власні API. Open-source моделі (Llama, Mistral) мають унікальну структуру відповідей.
-
-Claude Code очікує **конкретні** streaming-події Anthropic (`content_block_delta`), типи блоків контенту, структури `tool_use`, значення `stop_reason` та поля підрахунку токенів. Надішліть йому сиру відповідь DeepSeek або OpenAI — він зламається.
-
-**Рішення:** Провайдери як **OpenRouter** та **DeepSeek** пропонують **Anthropic-сумісні проксі-endpoint'и** — вони приймають запити у форматі Anthropic, маршрутизують їх до будь-якої моделі та **перекладають відповідь назад** у формат Anthropic. claude-flow знає, які саме endpoint'и використовувати для кожного провайдера.
-
-### 2. Пастка автентифікації
-
-Автентифікація Claude Code має **недокументовану особливість**: `ANTHROPIC_API_KEY` повинна бути встановлена на **порожній рядок** (`""`) для проксі-провайдерів — не відсутня, не видалена. Саме порожній рядок.
-
-- Якщо `ANTHROPIC_API_KEY` **відсутня** → Claude Code падає при запуску
-- Якщо `ANTHROPIC_API_KEY` **непорожна** → Claude Code використовує її і мовчки ігнорує ваш проксі-токен
-- Якщо `ANTHROPIC_API_KEY` **`""`** → Claude Code переходить на `ANTHROPIC_AUTH_TOKEN` ✓
-
-Різні провайдери також використовують різні методи автентифікації — Bearer токен (OpenRouter) vs. API ключ (DeepSeek, OpenAI). Помилка в будь-чому з цього призводить до тихих збоїв.
-
-### 3. Складність конфігурації
-
-6 змінних середовища, нуль офіційної документації, різні комбінації для кожного провайдера та неочевидна поведінка. Одне неправильне налаштування = Claude Code або падає, або мовчки спілкується з неправильним endpoint'ом.
-
-**claude-flow вирішує всі три проблеми.** Одна команда коректно налаштовує все для будь-якого провайдера.
-
----
+Провайдер має підтримувати Anthropic Messages API. claude-flow очищує запити й налаштовує середовище, але не перетворює протоколи OpenAI Chat Completions чи Gemini. Доступність моделей і підтримка інструментів залежать від провайдера. `env` лише друкує змінні середовища; використовуйте `run` для запуску через проксі.
 
 ## Швидкий старт
 
@@ -48,11 +22,10 @@ npm install -g github:Lexus2016/claude-flow
 claude-flow setup openrouter
 
 # Запуск Claude Code
-eval $(claude-flow env)
-claude -p "Привіт з OpenRouter!"
+claude-flow run -- claude -p "Привіт з OpenRouter!"
 ```
 
-Готово. Тепер Claude Code використовує ваш провайдер у кожному запиті.
+Цей запуск використовує локальний проксі; наступні запуски оболонки не змінюються.
 
 ---
 
@@ -60,7 +33,7 @@ claude -p "Привіт з OpenRouter!"
 
 > **Важливо:** Назва `claude-flow` на npm належить **іншому проєкту**. Завжди встановлюйте з **GitHub**, щоб отримати правильний пакет.
 
-### Варіант 1: Глобально через NPM (рекомендовано)
+### Варіант 1: Встановлення з GitHub (рекомендовано)
 
 ```bash
 npm install -g github:Lexus2016/claude-flow
@@ -145,7 +118,7 @@ claude-flow setup openrouter
     echo 'eval "$(claude-flow env)"' >> ~/.bashrc
 
     # Option 3: One-time eval
-    eval $(claude-flow env)
+    eval "$(claude-flow env)"
 ```
 
 ### 3. Використання Claude Code з вашим провайдером
@@ -161,7 +134,7 @@ claude-flow run -- claude -p "Яка погода?"
 #### Метод 2: Eval для поточної оболонки (рекомендовано для інтерактивної роботи)
 
 ```bash
-eval $(claude-flow env)
+eval "$(claude-flow env)"
 claude -p "Побудуй мені React компонент"
 ```
 
@@ -182,15 +155,9 @@ claude -p "Привіт!"
 
 ## Підтримувані провайдери
 
-### Швидке порівняння
-
-| Провайдер | Вибір моделей | Вартість | Налаштування | Найкраще для |
-|-----------|-----------------|---------|-------------|------------|
-| **OpenRouter** | 200+ моделей від усіх провайдерів | Варіюється | Легко | Один API для всього |
-| **DeepSeek** | V3.2, R1 (reasoning) | Найдешевше | Легко | Дешеві міркування |
-| **OpenAI** | GPT-5.2, o3 | Преміум | Легко | Найновіші моделі |
-| **Gemini** | Gemini 3.1 Pro / 3 Flash | Конкурентна | Легко | Швидке виконання |
-| **Custom** | Будь-який Anthropic-сумісний endpoint | Варіюється | Ручне | Самостійно розміщені, приватні хмари |
+- `openrouter` і `deepseek`: налаштування Anthropic-сумісних endpoint. Перевірте доступні моделі в провайдера.
+- `openai` і `gemini`: записи конфігурації, але перетворення рідних API не реалізовано.
+- `custom`: Anthropic-сумісний HTTP(S) endpoint із Bearer-автентифікацією.
 
 ---
 
@@ -294,84 +261,20 @@ claude-flow setup deepseek
 
 ---
 
-### OpenAI
+### Моделі OpenAI та Gemini
 
-**Останні моделі GPT, включаючи o3.**
-
-GPT-5.2 (flagship), GPT-5.2 Thinking та o3 через офіційний API OpenAI.
-
-**Отримати API ключ:** https://platform.openai.com/api-keys
-
-**Налаштування:**
-
-```bash
-claude-flow setup openai
-```
-
-**Моделі за замовчуванням:**
-- Haiku: `gpt-5.2-mini`
-- Sonnet: `gpt-5.2`
-- Opus: `gpt-5.2`
-
-**Популярні моделі:**
-
-```bash
-claude-flow models openai
-```
-
-```
-  Default tier mapping:
-    haiku  → gpt-5.2-mini
-    sonnet → gpt-5.2
-    opus   → gpt-5.2
-
-  Popular models:
-
-    Model ID                                 Name                     Tier
-    ─────────────────────────────────────────────────────────────────────
-    gpt-5.2                                  GPT-5.2                  opus
-    gpt-5.2-mini                             GPT-5.2 Mini             sonnet
-    o3                                       o3                       opus
-    o3-mini                                  o3 Mini                  sonnet
-```
-
----
-
-### Gemini
-
-**Останні моделі Google. Швидкі та здатні.**
-
-Gemini 3.1 Pro (latest), Gemini 3 Flash та 2.5 через API Google.
-
-**Отримати API ключ:** https://aistudio.google.com/apikey
-
-**Налаштування:**
-
-```bash
-claude-flow setup gemini
-```
-
-**Моделі за замовчуванням:**
-- Haiku: `gemini-2.5-flash`
-- Sonnet: `gemini-3-flash-preview`
-- Opus: `gemini-3.1-pro-preview`
+Виберіть ці моделі через Anthropic-сумісний сервіс, наприклад OpenRouter. Записи `openai` та `gemini` є в CLI, але проксі не реалізує перетворення їхніх рідних API. Саме існування команди setup не доводить сумісність.
 
 ---
 
 ### Власний провайдер
 
-**Будь-який Anthropic-сумісний endpoint (самостійно розміщені, приватні хмари тощо).**
-
-Якщо у вас є свій Claude-сумісний endpoint або ви хочете користуватися провайдером, якого немає вище:
-
 ```bash
 claude-flow setup custom
+claude-flow run custom -- claude -p "Привіт"
 ```
 
-Вас попросять ввести:
-- URL основи API (наприклад, `https://your-proxy.local/v1`)
-- ID моделей
-- API ключ
+Майстер запитує HTTP(S) базову адресу, ключ та ID моделей. Введіть частину перед `/v1/messages`, наприклад `http://127.0.0.1:4000`; проксі додає цей шлях сам. Провайдер має підтримувати Anthropic Messages API й Bearer-автентифікацію. `env`, `run` і `proxy` використовують збережену адресу. Ключ зберігається відкритим текстом у локальному файлі; не публікуйте конфігурацію.
 
 ---
 
@@ -402,7 +305,7 @@ claude-flow setup <provider>
 ```bash
 claude-flow setup openrouter
 claude-flow setup deepseek
-claude-flow setup openai
+claude-flow setup custom
 ```
 
 ---
@@ -416,11 +319,11 @@ claude-flow setup openai
 claude-flow env
 
 # Або використати в команді
-eval $(claude-flow env)
+eval "$(claude-flow env)"
 
 # Або для конкретного провайдера
 claude-flow env deepseek
-eval $(claude-flow env deepseek)
+eval "$(claude-flow env deepseek)"
 ```
 
 **Приклад виводу:**
@@ -501,7 +404,7 @@ claude-flow switch <provider>
 
 ```bash
 claude-flow switch deepseek
-# Тепер eval $(claude-flow env) буде використовувати DeepSeek
+# Тепер eval "$(claude-flow env)" буде використовувати DeepSeek
 ```
 
 ---
@@ -660,9 +563,9 @@ export ANTHROPIC_DEFAULT_SONNET_MODEL='deepseek-v3.2'
 
 Функція `buildEnv()` в `lib/env.js`:
 
-1. **Обирає правильний endpoint** що забезпечує трансляцію форматів для кожного провайдера
+1. Вибір базової адреси не перевіряє протокол провайдера.
 2. **Для прокси-провайдерів** (OpenRouter): встановлює `ANTHROPIC_API_KEY = ""` та `ANTHROPIC_AUTH_TOKEN = apiKey`
-3. **Для прямих провайдерів** (DeepSeek, OpenAI): встановлює `ANTHROPIC_API_KEY = apiKey` (їхні endpoint'и нативно приймають формат Anthropic)
+3. **Для записів з API-ключем:** встановлює `ANTHROPIC_API_KEY = apiKey`. Це автентифікація, а не перетворення протоколу чи доказ сумісності endpoint.
 4. **Маппить моделі на рівні** — встановлює `ANTHROPIC_DEFAULT_HAIKU/SONNET/OPUS_MODEL`
 5. **Повертає повний об'єкт env** готовий для передачі до Claude Code — без гадання, без підводних каменів
 
@@ -805,7 +708,7 @@ const env = buildEnv('openrouter', {
 ```javascript
 const env = buildEnv('custom', {
   apiKey: 'sk-custom-key',
-  baseUrl: 'https://your-proxy.local/v1',
+  baseUrl: 'https://your-proxy.example',
   haiku: 'your-model-haiku',
   sonnet: 'your-model-sonnet',
   opus: 'your-model-opus'
@@ -982,39 +885,7 @@ spawn('claude', args, { env: mergeEnv(selectedProvider, { apiKey }) });
 
 ### Docker / CI-CD
 
-Використовуйте claude-flow у контейнері Docker для маршрутизації до будь-якого LLM:
-
-```dockerfile
-FROM node:18-slim
-
-RUN npm install -g github:Lexus2016/claude-flow
-
-WORKDIR /app
-COPY . .
-
-# Запустити Claude Code з провайдером з env
-CMD ["sh", "-c", "eval $(claude-flow env) && claude -p 'Your prompt'"]
-```
-
-**Побудувати та запустити:**
-
-```bash
-docker build -t my-app .
-
-docker run --env OPENROUTER_API_KEY='sk-or-v1-...' my-app
-```
-
-Або користуйтесь `docker-compose.yml`:
-
-```yaml
-version: '3'
-services:
-  app:
-    build: .
-    environment:
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
-      ANTHROPIC_DEFAULT_SONNET_MODEL: deepseek/deepseek-v3.2
-```
+Для контейнера потрібні окремо встановлений Claude Code CLI та конфігурація провайдера для користувача всередині контейнера. Однієї змінної `OPENROUTER_API_KEY` недостатньо для `env` чи `run`. Не вбудовуйте ключі або персональну конфігурацію в образ. Готового перевіреного Docker-рецепта цей посібник не надає.
 
 ### Профіль оболонки (постійний)
 
@@ -1071,7 +942,7 @@ claude-flow setup openrouter
 Переконайтесь, що ви:
 1. Запустили `claude-flow setup <provider>`
 2. Або:
-   - Запустили `eval $(claude-flow env)` у поточній оболонці
+   - Запустили `eval "$(claude-flow env)"` у поточній оболонці
    - Або користуйтесь `claude-flow run -- claude ...` для одноразового запуску
    - Або додали `eval "$(claude-flow env)"` до профілю оболонки та перезавантажили
 
@@ -1095,7 +966,7 @@ claude-flow status
 ### Власний провайдер не працює
 
 Для власних endpoint'ів переконайтесь, що:
-1. URL базису включає `/v1` або повний шлях до API (наприклад, `https://your-proxy.local/v1`)
+1. Збережіть частину перед `/v1/messages`. Для `https://your-proxy.example/v1/messages` використовуйте `https://your-proxy.example`, а не `https://your-proxy.example/v1`; проксі додає `/v1/messages` сам.
 2. ID моделей дійсні для вашого endpoint'а
 3. Ваш API ключ правильний
 

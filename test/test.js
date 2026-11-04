@@ -736,6 +736,7 @@ async function runProxyTests() {
 
 async function finish() {
   await runProxyTests();
+  await require("./cli.test")(assert);
 
   console.log(`\n${"─".repeat(50)}`);
   console.log(`Results: ${passed} passed, ${failed} failed`);

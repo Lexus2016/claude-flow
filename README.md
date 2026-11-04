@@ -1,6 +1,6 @@
 # claude-flow
 
-**Bridge any AI model to Claude Code CLI** — route through OpenRouter, DeepSeek, OpenAI, Gemini, or any Anthropic-compatible endpoint.
+**Configure Claude Code for Anthropic-compatible providers, with a local request-sanitizing proxy.** Zero runtime dependencies; Node.js.
 
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0-green) ![License](https://img.shields.io/badge/license-MIT-blue) ![Zero Dependencies](https://img.shields.io/badge/dependencies-0-success)
 
@@ -8,35 +8,17 @@ Available in: **[English](README.md)** | [Українська](README_UA.md) | 
 
 ---
 
-## The Problem
+## Compatibility and data handling
 
-Claude Code CLI is hardcoded for Anthropic's API. It sends requests in Anthropic's Messages API format, expects responses in that exact format, and authenticates using Anthropic's method. If you want to use **any other model** — DeepSeek, GPT-4, Gemini, GLM, Llama, Qwen — you hit three walls:
+The upstream must accept Anthropic's `POST /v1/messages` and return Anthropic-format responses. This project removes unsupported request fields and forwards requests; it does **not** translate OpenAI Chat Completions or native Gemini protocols.
 
-### 1. Response Format Incompatibility
+OpenRouter and DeepSeek have Anthropic-compatible provider entries. The `openai` and `gemini` CLI entries are not proof of native endpoint compatibility. Use an Anthropic-compatible service for those model families and check model/tool support.
 
-Every AI provider has its own API format. DeepSeek, OpenAI, and Gemini use the OpenAI-compatible format. Chinese models (GLM, Qwen) have their own APIs. Open-source models (Llama, Mistral) each have unique response structures.
+Setup stores keys in `~/.claude-flow/config.json` as plaintext (created with owner-only permissions). Requests and credentials go to your chosen upstream. Do not share configuration, raw shell exports or private logs. Local proxying does not make inference local.
 
-Claude Code expects Anthropic's **specific** streaming events (`content_block_delta`), content block types, `tool_use` structures, `stop_reason` values, and token counting fields. Send it a raw DeepSeek or OpenAI response — it crashes.
+`env` only prints shell exports; it does not start the sanitizing proxy. Prefer `run` when you need sanitization.
 
-**The fix:** Providers like **OpenRouter** and **DeepSeek** offer **Anthropic-compatible proxy endpoints** — they accept requests in Anthropic format, route them to any model, and **translate the response back** into Anthropic format. claude-flow knows exactly which endpoints to use for each provider.
-
-### 2. Authentication Trap
-
-Claude Code's auth has an **undocumented quirk**: `ANTHROPIC_API_KEY` must be set to an **empty string** (`""`) for proxy providers — not absent, not unset. Specifically an empty string.
-
-- If `ANTHROPIC_API_KEY` is **absent** → Claude Code errors out on startup
-- If `ANTHROPIC_API_KEY` is **non-empty** → Claude Code uses it and silently ignores your proxy token
-- If `ANTHROPIC_API_KEY` is **`""`** → Claude Code falls back to `ANTHROPIC_AUTH_TOKEN` ✓
-
-Different providers also use different auth methods — Bearer token (OpenRouter) vs. API key header (DeepSeek, OpenAI). Getting any of this wrong means silent failures.
-
-### 3. Configuration Complexity
-
-6 environment variables, zero official documentation, different combinations for each provider, and non-obvious behaviors. One wrong setting = Claude Code either crashes or silently talks to the wrong endpoint.
-
-**claude-flow solves all three.** One command configures everything correctly for any provider.
-
----
+[Releases](https://github.com/Lexus2016/claude-flow/releases) · [Contributing](CONTRIBUTING.md) · [Issues](https://github.com/Lexus2016/claude-flow/issues)
 
 ## Quick Start
 
@@ -48,11 +30,10 @@ npm install -g github:Lexus2016/claude-flow
 claude-flow setup openrouter
 
 # Run Claude Code
-eval $(claude-flow env)
-claude -p "Hello from OpenRouter!"
+claude-flow run -- claude -p "Hello from OpenRouter!"
 ```
 
-That's it. Now Claude Code uses your provider for every invocation.
+`run` configures its child process and closes the proxy when it exits. It does not change every future shell invocation.
 
 ---
 
@@ -146,7 +127,7 @@ You'll be prompted for:
     echo 'eval "$(claude-flow env)"' >> ~/.bashrc
 
     # Option 3: One-time eval
-    eval $(claude-flow env)
+    eval "$(claude-flow env)"
 ```
 
 ### 3. Use Claude Code with your provider
@@ -162,14 +143,14 @@ claude-flow run -- claude -p "What is the weather?"
 #### Method 2: Eval to current shell (recommended for interactive work)
 
 ```bash
-eval $(claude-flow env)
+eval "$(claude-flow env)"
 claude -p "Build me a React component"
 ```
 
 #### Method 3: Add to shell profile (recommended for permanent setup)
 
 ```bash
-# Add to ~/.bashrc, ~/.zshrc, or ~/.fish/config.fish
+# Bash or Zsh only; this export syntax is not Fish syntax
 echo 'eval "$(claude-flow env)"' >> ~/.bashrc
 
 # Then reload your shell
@@ -183,15 +164,9 @@ claude -p "Hello!"
 
 ## Supported Providers
 
-### Quick Comparison
-
-| Provider | Model Selection | Cost | Setup | Popular For |
-|----------|-----------------|------|-------|------------|
-| **OpenRouter** | 200+ models from all providers | Varies | Easy | One API for everything |
-| **DeepSeek** | V3.2, R1 (reasoning) | Cheapest | Easy | Cost-effective reasoning |
-| **OpenAI** | GPT-5.2, o3 | Premium | Easy | Cutting-edge models |
-| **Gemini** | Gemini 3.1 Pro / 3 Flash | Competitive | Easy | Fast inference |
-| **Custom** | Any Anthropic-compatible endpoint | Varies | Manual | Self-hosted, private clouds |
+- `openrouter` and `deepseek`: entries for Anthropic-compatible endpoints. Verify model availability with the provider.
+- `openai` and `gemini`: configuration entries exist, but native protocol translation is not implemented.
+- `custom`: an HTTP(S) Anthropic-compatible endpoint with Bearer authentication.
 
 ---
 
@@ -212,9 +187,9 @@ claude-flow setup openrouter
 ```
 
 **Default models:**
-- Haiku: `anthropic/claude-haiku-4-5-20251001-5-20251001`
-- Sonnet: `anthropic/claude-sonnet-4-6-6`
-- Opus: `anthropic/claude-opus-4-6-6`
+- Haiku: `anthropic/claude-haiku-4-5-20251001`
+- Sonnet: `anthropic/claude-sonnet-4-6`
+- Opus: `anthropic/claude-opus-4-6`
 
 **Popular models to try:**
 
@@ -224,17 +199,17 @@ claude-flow models openrouter
 
 ```
   Default tier mapping:
-    haiku  → anthropic/claude-haiku-4-5-20251001-5-20251001
-    sonnet → anthropic/claude-sonnet-4-6-6
-    opus   → anthropic/claude-opus-4-6-6
+    haiku  → anthropic/claude-haiku-4-5-20251001
+    sonnet → anthropic/claude-sonnet-4-6
+    opus   → anthropic/claude-opus-4-6
 
   Popular models:
 
     Model ID                                 Name                     Tier
     ─────────────────────────────────────────────────────────────────────
-    anthropic/claude-opus-4-6-6                Claude Opus 4.6          opus
-    anthropic/claude-sonnet-4-6-6              Claude Sonnet 4.6        sonnet
-    anthropic/claude-haiku-4-5-20251001-5-20251001      Claude Haiku 4.5         haiku
+    anthropic/claude-opus-4-6                Claude Opus 4.6          opus
+    anthropic/claude-sonnet-4-6              Claude Sonnet 4.6        sonnet
+    anthropic/claude-haiku-4-5-20251001      Claude Haiku 4.5         haiku
     google/gemini-3.1-pro-preview            Gemini 3.1 Pro           opus
     google/gemini-3-flash-preview            Gemini 3 Flash           sonnet
     openai/gpt-5.2                           GPT-5.2                  opus
@@ -264,9 +239,9 @@ claude-flow setup openrouter
 
 ### DeepSeek
 
-**Ultra-fast and cheap. Great for reasoning tasks.**
+**A provider entry for DeepSeek's Anthropic-compatible API.**
 
-DeepSeek V3.2 (fast, hybrid thinking) and R1 (deep reasoning) through their native Anthropic-compatible API. Single digit cent costs.
+The model IDs below are configuration defaults, not a live catalog. Check current availability and prices with the provider.
 
 **Get API key:** https://platform.deepseek.com/api_keys
 
@@ -281,12 +256,6 @@ claude-flow setup deepseek
 - Sonnet: `deepseek-v3.2`
 - Opus: `deepseek-r1-0528`
 
-**Why use DeepSeek?**
-- Cheapest LLM pricing available
-- DeepSeek V3.2 supports hybrid thinking mode
-- DeepSeek R1 reasoning beats most models on benchmarks
-- Native Anthropic-compatible API (no proxy markup)
-
 **Use R1 for deep reasoning:**
 
 ```bash
@@ -296,85 +265,20 @@ claude-flow setup deepseek
 
 ---
 
-### OpenAI
+### OpenAI and Gemini model families
 
-**Latest GPT models, including GPT-5.2 and o3.**
-
-GPT-5.2 (flagship), GPT-5.2 Thinking (reasoning) and o3 through OpenAI's official API.
-
-**Get API key:** https://platform.openai.com/api-keys
-
-**Setup:**
-
-```bash
-claude-flow setup openai
-```
-
-**Default models:**
-- Haiku: `gpt-5.2-mini`
-- Sonnet: `gpt-5.2`
-- Opus: `gpt-5.2`
-
-**Popular models:**
-
-```bash
-claude-flow models openai
-```
-
-```
-  Default tier mapping:
-    haiku  → gpt-5.2-mini
-    sonnet → gpt-5.2
-    opus   → gpt-5.2
-
-  Popular models:
-
-    Model ID                                 Name                     Tier
-    ─────────────────────────────────────────────────────────────────────
-    gpt-5.2                                  GPT-5.2                  opus
-    gpt-5.2-mini                             GPT-5.2 Mini             sonnet
-    gpt-5.2-thinking                         GPT-5.2 Thinking         opus
-    o3                                       o3                       opus
-    gpt-4.1                                  GPT-4.1                  sonnet
-```
-
----
-
-### Gemini
-
-**Google's latest models. Fast and capable.**
-
-Gemini 3.1 Pro (latest flagship), Gemini 3 Flash, and Gemini 2.5 through Google's API.
-
-**Get API key:** https://aistudio.google.com/apikey
-
-**Setup:**
-
-```bash
-claude-flow setup gemini
-```
-
-**Default models:**
-- Haiku: `gemini-2.5-flash`
-- Sonnet: `gemini-3-flash-preview`
-- Opus: `gemini-3.1-pro-preview`
+Use these models through an Anthropic-compatible upstream, such as OpenRouter. The presence of `openai` and `gemini` setup entries does not mean native API translation is implemented. See [`lib/proxy.js`](lib/proxy.js) and the [compatibility notes](#compatibility-and-data-handling).
 
 ---
 
 ### Custom Provider
 
-**Any Anthropic-compatible endpoint (self-hosted, private clouds, etc.).**
-
-If you have your own Claude-compatible endpoint, or want to use a provider not listed above:
-
 ```bash
 claude-flow setup custom
+claude-flow run custom -- claude -p "Hello"
 ```
 
-You'll be prompted for:
-- API base URL (e.g., `https://your-proxy.local/v1`)
-- Model IDs
-- API key
+Setup asks for an HTTP(S) base URL, key and model IDs. Use the part before `/v1/messages`: for `https://provider.example/anthropic/v1/messages`, save `https://provider.example/anthropic`. The custom provider uses Bearer authentication. `env`, `run` and `proxy` reuse the saved URL. The upstream must implement Anthropic Messages; this is not a native OpenAI/Gemini adapter.
 
 ---
 
@@ -405,7 +309,7 @@ Interactive setup wizard. Guides you through getting an API key and choosing mod
 ```bash
 claude-flow setup openrouter
 claude-flow setup deepseek
-claude-flow setup openai
+claude-flow setup custom
 ```
 
 ---
@@ -419,11 +323,11 @@ Print shell export statements. Used for eval or adding to your shell profile.
 claude-flow env
 
 # Or use in a command
-eval $(claude-flow env)
+eval "$(claude-flow env)"
 
 # Or for a specific provider
 claude-flow env deepseek
-eval $(claude-flow env deepseek)
+eval "$(claude-flow env deepseek)"
 ```
 
 **Output example:**
@@ -504,7 +408,7 @@ claude-flow switch <provider>
 
 ```bash
 claude-flow switch deepseek
-# Now eval $(claude-flow env) will use DeepSeek
+# Now eval "$(claude-flow env)" will use DeepSeek
 ```
 
 ---
@@ -664,11 +568,11 @@ export ANTHROPIC_DEFAULT_SONNET_MODEL='deepseek-chat'
 
 The `buildEnv()` function in `lib/env.js`:
 
-1. **Selects the correct endpoint** that handles format translation for each provider
+1. **Selects the configured base URL**; the upstream must support Anthropic Messages.
 2. **For proxy providers** (OpenRouter): Sets `ANTHROPIC_API_KEY = ""` and `ANTHROPIC_AUTH_TOKEN = apiKey`
-3. **For direct providers** (DeepSeek, OpenAI): Sets `ANTHROPIC_API_KEY = apiKey` (their endpoints accept Anthropic format natively)
+3. **For API-key entries:** sets `ANTHROPIC_API_KEY = apiKey`. This configures authentication, not protocol translation or endpoint compatibility.
 4. **Maps models to tiers** — sets `ANTHROPIC_DEFAULT_HAIKU/SONNET/OPUS_MODEL`
-5. **Returns a complete env object** ready to pass to Claude Code — no guesswork, no gotchas
+5. **Returns environment variables**; verify upstream compatibility separately.
 
 ---
 
@@ -809,7 +713,7 @@ const env = buildEnv('openrouter', {
 ```javascript
 const env = buildEnv('custom', {
   apiKey: 'sk-custom-key',
-  baseUrl: 'https://your-proxy.local/v1',
+  baseUrl: 'https://your-proxy.example',
   haiku: 'your-model-haiku',
   sonnet: 'your-model-sonnet',
   opus: 'your-model-opus'
@@ -986,39 +890,7 @@ spawn('claude', args, { env: mergeEnv(selectedProvider, { apiKey }) });
 
 ### Docker / CI-CD
 
-Use claude-flow in your Docker container to route to any LLM:
-
-```dockerfile
-FROM node:18-slim
-
-RUN npm install -g github:Lexus2016/claude-flow
-
-WORKDIR /app
-COPY . .
-
-# Run Claude Code with provider from env
-CMD ["sh", "-c", "eval $(claude-flow env) && claude -p 'Your prompt'"]
-```
-
-**Build and run:**
-
-```bash
-docker build -t my-app .
-
-docker run --env OPENROUTER_API_KEY='sk-or-v1-...' my-app
-```
-
-Or use `docker-compose.yml`:
-
-```yaml
-version: '3'
-services:
-  app:
-    build: .
-    environment:
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
-      ANTHROPIC_DEFAULT_SONNET_MODEL: deepseek/deepseek-chat
-```
+A container needs a separately installed Claude Code CLI and provider configuration for the container user. Setting `OPENROUTER_API_KEY` alone does not configure `env` or `run`. Do not bake keys or personal configuration into an image. This guide does not provide a verified, ready-to-run Docker recipe.
 
 ### Shell Profile (Permanent)
 
@@ -1075,7 +947,7 @@ Or manually add the key to `~/.claude-flow/config.json`.
 Make sure you've:
 1. Run `claude-flow setup <provider>`
 2. Either:
-   - Run `eval $(claude-flow env)` in your current shell
+   - Run `eval "$(claude-flow env)"` in your current shell
    - Or use `claude-flow run -- claude ...` to run Claude Code once
    - Or add `eval "$(claude-flow env)"` to your shell profile and restart
 
@@ -1099,7 +971,7 @@ If you're sure it's correct, you can ignore the warning.
 ### Custom provider not working
 
 For custom endpoints, make sure:
-1. The base URL includes `/v1` or the full path to the API (e.g., `https://your-proxy.local/v1`)
+1. Save the part before `/v1/messages`. For `https://your-proxy.example/v1/messages`, use `https://your-proxy.example`, not `https://your-proxy.example/v1`; the proxy appends `/v1/messages` itself.
 2. The model IDs are valid for your endpoint
 3. Your API key is correct
 

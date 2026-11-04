@@ -100,8 +100,27 @@ async function cmdSetup(providerName) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
 
-  // API Key
   const existingCfg = config.getProviderConfig(providerName);
+  // Custom upstreams must accept Anthropic's /v1/messages protocol.
+  // Resolve the base before accepting a key so incomplete setup saves no secret.
+  let baseUrl;
+  if (provider === PROVIDERS.custom) {
+    const currentUrl = existingCfg?.baseUrl || "";
+    while (!baseUrl) {
+      const answer = (await ask(`  API base URL (without /v1/messages) [${currentUrl}]: `)).trim() || currentUrl;
+      try {
+        const parsed = new URL(answer);
+        if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) {
+          throw new Error("unsupported URL");
+        }
+        baseUrl = answer.replace(/\/+$/, "");
+      } catch {
+        console.log(Y("  Enter an http:// or https:// base URL without embedded credentials, query or fragment."));
+      }
+    }
+  }
+
+  // API Key
   const existingKey = existingCfg?.apiKey;
   const keyHint = existingKey
     ? ` ${D(`(current: ${existingKey.slice(0, 8)}...${existingKey.slice(-4)})`)}`
@@ -144,6 +163,7 @@ async function cmdSetup(providerName) {
   // Save config
   config.setProviderConfig(providerName, {
     apiKey,
+    ...(baseUrl ? { baseUrl } : {}),
     models: { haiku, sonnet, opus },
   });
   config.setActiveProvider(providerName);
@@ -151,6 +171,7 @@ async function cmdSetup(providerName) {
   // Build and display env
   const env = buildEnv(providerName, {
     apiKey,
+    baseUrl,
     haiku, sonnet, opus,
   });
 
@@ -191,6 +212,7 @@ function cmdEnv(providerName) {
 
   const env = buildEnv(name, {
     apiKey: saved.apiKey,
+    baseUrl: saved.baseUrl,
     haiku:  saved.models?.haiku,
     sonnet: saved.models?.sonnet,
     opus:   saved.models?.opus,
@@ -240,11 +262,13 @@ async function cmdRun(rawArgs) {
 
   const env = mergeEnv(providerName, {
     apiKey: saved.apiKey,
+    baseUrl: saved.baseUrl,
     haiku:  saved.models?.haiku,
     sonnet: saved.models?.sonnet,
     opus:   saved.models?.opus,
   });
 
+  const targetUrl = env.ANTHROPIC_BASE_URL;
   // Start sanitizing proxy (unless --no-proxy)
   let proxyInstance = null;
   if (!noProxy) {
@@ -253,7 +277,7 @@ async function cmdRun(rawArgs) {
       const auth = getAuthConfig(providerName, saved.apiKey);
 
       proxyInstance = await createProxy({
-        targetUrl: provider.baseUrl,
+        targetUrl,
         authHeader: auth.authHeader,
         authValue: auth.authValue,
         maxOutputTokens: provider.maxOutputTokens || 0,
@@ -262,7 +286,7 @@ async function cmdRun(rawArgs) {
       // Override env to route through proxy
       env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${proxyInstance.port}/api`;
 
-      console.error(`${G("✓")} Proxy: 127.0.0.1:${proxyInstance.port} ${D(`→ ${provider.baseUrl}`)}`);
+      console.error(`${G("✓")} Proxy: 127.0.0.1:${proxyInstance.port} ${D(`→ ${targetUrl}`)}`);
     } catch (err) {
       console.error(Y(`Warning: Could not start proxy: ${err.message}`));
       console.error(Y("Continuing without proxy (some features may not work with non-Anthropic models)"));
@@ -357,9 +381,10 @@ async function cmdProxy(rawArgs) {
   // Start proxy
   const { createProxy } = require("../lib/proxy");
   const auth = getAuthConfig(providerName, apiKey);
+  const targetUrl = buildEnv(providerName, { apiKey, baseUrl: saved?.baseUrl }).ANTHROPIC_BASE_URL;
 
   const proxy = await createProxy({
-    targetUrl: provider.baseUrl,
+    targetUrl,
     authHeader: auth.authHeader,
     authValue: auth.authValue,
     maxOutputTokens: provider.maxOutputTokens || 0,
@@ -369,7 +394,7 @@ async function cmdProxy(rawArgs) {
 
   console.error(`\n  ${B("claude-flow proxy")} — Sanitizing proxy for ${B(provider.name)}\n`);
   console.error(`  ${G("●")} Listening: ${B(`http://127.0.0.1:${proxy.port}`)}`);
-  console.error(`  ${D("→")} Upstream:  ${provider.baseUrl}`);
+  console.error(`  ${D("→")} Upstream:  ${targetUrl}`);
   const maskedAuth = auth.authValue.length > 12
     ? auth.authValue.slice(0, 8) + "..." + auth.authValue.slice(-4)
     : "***";
